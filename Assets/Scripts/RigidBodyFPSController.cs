@@ -7,6 +7,7 @@ public class RigidbodyFPSController : MonoBehaviour
     [SerializeField] private float jumpForce = 5f;
     [SerializeField] private float groundDrag = 6f;
     [SerializeField] private float airDrag = 2f;
+    [SerializeField] [Range(0f, 5f)] private float gravityMultiplier = 1f;
     
     [Header("Ground Detection")]
     [SerializeField] private Transform groundCheck;
@@ -18,7 +19,7 @@ public class RigidbodyFPSController : MonoBehaviour
     private Rigidbody rb;
     private Vector2 moveInput;
     private Vector2 mouseInput;
-    private float xRotation = 0f;
+    // private float xRotation = 0f;
     private bool isGrounded;
     private bool jumpRequested;
     
@@ -51,6 +52,7 @@ public class RigidbodyFPSController : MonoBehaviour
         HandleMovement();
         HandleJump();
         ApplyDrag();
+        ApplyGravity();
     }
     
     void CaptureInput()
@@ -120,5 +122,15 @@ public class RigidbodyFPSController : MonoBehaviour
     {
         // Apply more drag when grounded for responsive stopping
         rb.linearDamping = isGrounded ? groundDrag : airDrag;
+    }
+
+    void ApplyGravity()
+    {
+        // Apply additional gravity force based on multiplier
+        if (gravityMultiplier > 1f)
+        {
+            Vector3 extraGravity = Physics.gravity * (gravityMultiplier - 1f);
+            rb.AddForce(extraGravity, ForceMode.Acceleration);
+        }
     }
 }

@@ -59,6 +59,9 @@ public class FirstPersonCamera : MonoBehaviour
     private Mouse mouse;
     private Keyboard keyboard;
 
+    public GameObject gun;
+    public GameObject gunFiring;
+
     /// <summary>
     /// Initialization method.
     /// </summary>
@@ -93,6 +96,7 @@ public class FirstPersonCamera : MonoBehaviour
         HandleHeadBobbing();
         HandleFieldOfView();
         HandleCameraSway();
+        HandleClick();
     }
 
     /// <summary>
@@ -113,6 +117,19 @@ public class FirstPersonCamera : MonoBehaviour
         playerBody.Rotate(Vector3.up * mouseX);
     }
 
+    void HandleClick()
+    {
+        if (mouse == null) return;
+
+        if (mouse.leftButton.isPressed)
+        {
+            gun.SetActive(false);
+            gunFiring.SetActive(true);
+        } else {
+            gun.SetActive(true);
+            gunFiring.SetActive(false);
+        }
+    }
     /// <summary>
     /// Handles the head bobbing effect.
     /// </summary>
