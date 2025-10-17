@@ -98,8 +98,8 @@ public class RigidbodyFPSController : MonoBehaviour
         Vector3 moveDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
         
         // Normalize to prevent faster diagonal movement
-        if (moveDirection.magnitude > 1f)
-            moveDirection.Normalize();
+        moveDirection.Normalize();
+        
         
         // Calculate target velocity (only horizontal movement)
         Vector3 targetVelocity = moveDirection * moveSpeed;
