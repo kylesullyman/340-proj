@@ -92,11 +92,19 @@ public class FirstPersonCamera : MonoBehaviour
     /// </summary>
     void Update()
     {
-        HandleMouseLook();
         HandleHeadBobbing();
         HandleFieldOfView();
         HandleCameraSway();
         HandleClick();
+    }
+
+    /// <summary>
+    /// LateUpdate is called after all Update and FixedUpdate calls.
+    /// Camera rotation happens here to ensure smooth movement after physics.
+    /// </summary>
+    void LateUpdate()
+    {
+        HandleMouseLook();
     }
 
     /// <summary>
