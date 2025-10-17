@@ -9,219 +9,163 @@ using UnityEngine.InputSystem;
 /// attached to a camera object within a first-person player model.
 public class FirstPersonCamera : MonoBehaviour
 {
+    [Header("References")]
+    [SerializeField] private Transform playerBody;
+    [SerializeField] private Camera playerCamera;
+    [SerializeField] private RigidbodyFPSController rbController;
+    [SerializeField] private GameObject gun;
+    [SerializeField] private GameObject gunFiring;
+
     [Header("Mouse Look Settings")]
-    [Tooltip("Sensitivity of mouse movement.")]
-    public float mouseSensitivity = 100f;
-
-    [Tooltip("Reference to the player's body transform for rotation.")]
-    public Transform playerBody;
-
-    [Tooltip("The camera component attached to this object.")]
-    public Camera playerCamera;
-
-    // Internal variable to track the camera's x-axis rotation.
-    private float xRotation = 0f;
+    [SerializeField] private float mouseSensitivity = 100f;
 
     [Header("Head Bobbing Settings")]
-    [Tooltip("Speed of head bobbing.")]
-    public float bobbingSpeed = 0.18f;
-
-    [Tooltip("Amount of head bobbing.")]
-    public float bobbingAmount = 0.2f;
-
-    [Tooltip("Midpoint of head bobbing on the y-axis.")]
-    public float midpoint = 2f;
+    [SerializeField] private float bobbingSpeed = 0.18f;
+    [SerializeField] private float bobbingAmount = 0.2f;
+    [SerializeField] private float midpoint = 2f;
 
     [Header("Field of View Settings")]
-    [Tooltip("Normal field of view.")]
-    public float baseFOV = 60f;
+    [SerializeField] private float baseFOV = 60f;
+    [SerializeField] private float sprintFOV = 70f;
+    [SerializeField] private float fovChangeSpeed = 5f;
 
-    [Tooltip("Field of view when sprinting.")]
-    public float sprintFOV = 70f;
-
-    [Tooltip("Speed of FOV change.")]
-    public float fovChangeSpeed = 5f;
-
-    [Tooltip("Flag to determine if the player is sprinting.")]
+    [Header("Runtime State")]
     public bool isSprinting = false;
 
-    [Header("Camera Sway Settings")]
-    [Tooltip("Amount of camera sway.")]
-    public float swayAmount = 0.05f;
+    // Cached values
+    private float xRotation = 0f;
+    private float bobbingTimer = 0f;
+    private float targetFOV;
+    private const float TWO_PI = Mathf.PI * 2f;
 
-    [Tooltip("Speed of camera sway.")]
-    public float swaySpeed = 4f;
-
-    // Timer for head bobbing calculations.
-    private float timer = 0.0f;
-
-    // Input references
+    // Input references (cached for performance)
     private Mouse mouse;
     private Keyboard keyboard;
 
-    public GameObject gun;
-    public GameObject gunFiring;
-
-    public RigidbodyFPSController rbController; // for isGrounded
-
-    /// <summary>
-    /// Initialization method.
-    /// </summary>
-    void Start()
+    void Awake()
     {
-        if(rbController==null) 
-        {
-            Debug.LogError("RigidbodyFPSController is not assigned in the inspector.");
-            return;
-        }
-        
-        if (playerCamera == null)
-        {
-            Debug.LogError("PlayerCamera is not assigned in the inspector.");
-            return;
-        }
-
-        // Initialize input devices
+        // Cache input devices early
         mouse = Mouse.current;
         keyboard = Keyboard.current;
-
-        Cursor.lockState = CursorLockMode.Locked;
-        playerCamera.fieldOfView = baseFOV;
     }
 
-    /// <summary>
-    /// Update is called once per frame.
-    /// </summary>
+    void Start()
+    {
+        // Validate required references
+        if (rbController == null)
+        {
+            Debug.LogError("RigidbodyFPSController is not assigned in the inspector.", this);
+            enabled = false;
+            return;
+        }
+
+        if (playerCamera == null)
+        {
+            Debug.LogError("PlayerCamera is not assigned in the inspector.", this);
+            enabled = false;
+            return;
+        }
+
+        if (playerBody == null)
+        {
+            Debug.LogError("PlayerBody is not assigned in the inspector.", this);
+            enabled = false;
+            return;
+        }
+
+        // Initialize state
+        targetFOV = baseFOV;
+        playerCamera.fieldOfView = baseFOV;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+
     void Update()
     {
-        if (rbController.isGrounded == true)
+        HandleFieldOfView();
+        HandleGunVisibility();
+
+        if (rbController.isGrounded)
         {
             HandleHeadBobbing();
-            HandleCameraSway();
         }
-        HandleFieldOfView();
-        HandleClick();
     }
 
-    /// <summary>
-    /// LateUpdate is called after all Update and FixedUpdate calls.
-    /// Camera rotation happens here to ensure smooth movement after physics.
-    /// </summary>
     void LateUpdate()
     {
+        // Camera rotation happens here to ensure smooth movement after physics
         HandleMouseLook();
     }
 
-    /// <summary>
-    /// Handles the mouse look functionality.
-    /// </summary>
     void HandleMouseLook()
     {
         if (mouse == null) return;
 
         Vector2 mouseDelta = mouse.delta.ReadValue();
-        float mouseX = mouseDelta.x * mouseSensitivity * Time.deltaTime;
-        float mouseY = mouseDelta.y * mouseSensitivity * Time.deltaTime;
+        float sensitivityMultiplier = mouseSensitivity * Time.deltaTime;
 
-        xRotation -= mouseY;
+        xRotation -= mouseDelta.y * sensitivityMultiplier;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-        playerBody.Rotate(Vector3.up * mouseX);
+        playerBody.Rotate(Vector3.up * (mouseDelta.x * sensitivityMultiplier));
     }
 
-    void HandleClick()
+    void HandleGunVisibility()
     {
-        if (mouse == null) return;
+        if (mouse == null || gun == null || gunFiring == null) return;
 
-        if (mouse.leftButton.isPressed)
-        {
-            gun.SetActive(false);
-            gunFiring.SetActive(true);
-        } else {
-            gun.SetActive(true);
-            gunFiring.SetActive(false);
-        }
+        bool isFiring = mouse.leftButton.isPressed;
+        gun.SetActive(!isFiring);
+        gunFiring.SetActive(isFiring);
     }
-    /// <summary>
-    /// Handles the head bobbing effect.
-    /// </summary>
     void HandleHeadBobbing()
     {
         if (keyboard == null) return;
 
-        float waveslice = 0.0f;
+        // Get movement input
         float horizontal = 0f;
         float vertical = 0f;
 
-        // Check keyboard input
         if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) horizontal = -1f;
         else if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) horizontal = 1f;
 
         if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) vertical = -1f;
         else if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) vertical = 1f;
 
-        if (Mathf.Abs(horizontal) == 0 && Mathf.Abs(vertical) == 0)
+        // Calculate movement magnitude
+        bool isMoving = horizontal != 0f || vertical != 0f;
+
+        if (!isMoving)
         {
-            timer = 0.0f;
-        }
-        else
-        {
-            waveslice = Mathf.Sin(timer);
-            timer = timer + bobbingSpeed;
-            if (timer > Mathf.PI * 2)
-            {
-                timer = timer - (Mathf.PI * 2);
-            }
+            bobbingTimer = 0f;
+            // Smoothly return to midpoint
+            Vector3 localPos = transform.localPosition;
+            localPos.y = Mathf.Lerp(localPos.y, midpoint, Time.deltaTime * 5f);
+            transform.localPosition = localPos;
+            return;
         }
 
-        Vector3 localPos = transform.localPosition;
-        if (waveslice != 0)
+        // Update bobbing timer
+        bobbingTimer += bobbingSpeed;
+        if (bobbingTimer > TWO_PI)
         {
-            float translateChange = waveslice * bobbingAmount;
-            float totalAxes = Mathf.Abs(horizontal) + Mathf.Abs(vertical);
-            totalAxes = Mathf.Clamp(totalAxes, 0.0f, 1.0f);
-            translateChange = totalAxes * translateChange;
-            localPos.y = midpoint + translateChange;
-        }
-        else
-        {
-            localPos.y = midpoint;
+            bobbingTimer -= TWO_PI;
         }
 
-        transform.localPosition = localPos;
+        // Calculate bobbing offset
+        float waveslice = Mathf.Sin(bobbingTimer);
+        float movementMagnitude = Mathf.Clamp01(Mathf.Abs(horizontal) + Mathf.Abs(vertical));
+        float bobbingOffset = waveslice * bobbingAmount * movementMagnitude;
+
+        // Apply bobbing
+        Vector3 newLocalPos = transform.localPosition;
+        newLocalPos.y = midpoint + bobbingOffset;
+        transform.localPosition = newLocalPos;
     }
 
-    /// <summary>
-    /// Handles the dynamic field of view.
-    /// </summary>
     void HandleFieldOfView()
     {
-        if (isSprinting)
-        {
-            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, sprintFOV, fovChangeSpeed * Time.deltaTime);
-        }
-        else
-        {
-            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, baseFOV, fovChangeSpeed * Time.deltaTime);
-        }
-    }
-
-    /// <summary>
-    /// Handles the camera sway effect.
-    /// </summary>
-    void HandleCameraSway()
-    {
-        // if (mouse == null) return;
-
-        // fixme
-        // causes weird movement 
-        /*
-        Vector2 mouseDelta = mouse.delta.ReadValue();
-        float movementX = Mathf.Clamp(mouseDelta.x * swayAmount, -swayAmount, swayAmount);
-        float movementY = Mathf.Clamp(mouseDelta.y * swayAmount, -swayAmount, swayAmount);
-        Vector3 finalPosition = new Vector3(movementX, movementY, 0);
-        transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + finalPosition, swaySpeed * Time.deltaTime);
-        */
+        targetFOV = isSprinting ? sprintFOV : baseFOV;
+        playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, fovChangeSpeed * Time.deltaTime);
     }
 }
