@@ -20,8 +20,11 @@ public class RigidbodyFPSController : MonoBehaviour
     private Vector2 moveInput;
     private Vector2 mouseInput;
     // private float xRotation = 0f;
-    private bool isGrounded;
     private bool jumpRequested;
+    
+    // public variables
+    public bool isGrounded;
+    
     
     void Start()
     {

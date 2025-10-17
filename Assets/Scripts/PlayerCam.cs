@@ -62,22 +62,24 @@ public class FirstPersonCamera : MonoBehaviour
     public GameObject gun;
     public GameObject gunFiring;
 
+    public RigidbodyFPSController rbController; // for isGrounded
+
     /// <summary>
     /// Initialization method.
     /// </summary>
     void Start()
     {
+        if(rbController==null) 
+        {
+            Debug.LogError("RigidbodyFPSController is not assigned in the inspector.");
+            return;
+        }
+        
         if (playerCamera == null)
         {
             Debug.LogError("PlayerCamera is not assigned in the inspector.");
             return;
         }
-
-        if (playerCamera.tag == "Player")
-        {
-            
-        }
-        
 
         // Initialize input devices
         mouse = Mouse.current;
@@ -92,9 +94,12 @@ public class FirstPersonCamera : MonoBehaviour
     /// </summary>
     void Update()
     {
-        HandleHeadBobbing();
+        if (rbController.isGrounded == true)
+        {
+            HandleHeadBobbing();
+            HandleCameraSway();
+        }
         HandleFieldOfView();
-        HandleCameraSway();
         HandleClick();
     }
 
