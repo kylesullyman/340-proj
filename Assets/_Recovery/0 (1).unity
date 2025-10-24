@@ -413,6 +413,9 @@ MonoBehaviour:
   bobbingSpeed: 0.06
   bobbingAmount: 0.03
   midpoint: 1
+  slideRotationAngle: 25
+  slidePositionOffset: -0.5
+  slideCameraTransitionSpeed: 10
   baseFOV: 60
   sprintFOV: 70
   fovChangeSpeed: 5
@@ -1181,6 +1184,9 @@ MonoBehaviour:
   groundDrag: 6
   airDrag: 0.2
   gravityMultiplier: 3.25
+  slideSpeed: 12
+  slideDuration: 1
+  slideDrag: 4
   groundCheck: {fileID: 2099317872}
   groundDistance: 0.3
   groundLayer:
