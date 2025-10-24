@@ -413,6 +413,9 @@ MonoBehaviour:
   bobbingSpeed: 0.06
   bobbingAmount: 0.03
   midpoint: 1
+  slidePositionOffset: -0.5
+  slideCameraTransitionSpeed: 10
+  slideCameraReturnSpeed: 5
   baseFOV: 60
   sprintFOV: 70
   fovChangeSpeed: 5
@@ -1176,11 +1179,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6ae1a2f3f22a481a95e3c61d640d878, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RigidbodyFPSController
-  moveSpeed: 20
+  moveSpeed: 16
   jumpForce: 17
   groundDrag: 6
   airDrag: 0.2
   gravityMultiplier: 3.25
+  slideSpeed: 15
+  slideDuration: 1
+  slideMultiplier: 2.3
+  slideDrag: 4
   groundCheck: {fileID: 2099317872}
   groundDistance: 0.3
   groundLayer:
