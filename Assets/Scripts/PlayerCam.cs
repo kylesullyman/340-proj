@@ -25,8 +25,8 @@ public class FirstPersonCamera : MonoBehaviour
     [SerializeField] private float midpoint = 2f;
 
     [Header("Slide Camera Settings")]
-    [SerializeField] private float slidePositionOffset = -2.5f;
-    [SerializeField] private float slideCameraTransitionSpeed = 10f;
+    [SerializeField] private float slidePositionOffset = -1.0f;
+    [SerializeField] private float slideCameraTransitionSpeed = 5f;
     [SerializeField] private float slideCameraReturnSpeed = 5f;
 
     [Header("Field of View Settings")]
@@ -38,11 +38,11 @@ public class FirstPersonCamera : MonoBehaviour
     public bool isSprinting = false;
 
     // Cached values
-    private float xRotation = 0f;
-    private float bobbingTimer = 0f;
+    private float xRotation;
+    private float bobbingTimer;
     private float targetFOV;
     private const float TWO_PI = Mathf.PI * 2f;
-    private float baseYPosition = 0f;
+    private float baseYPosition;
     private float slideRotationOffset = 0f; // Separate offset for slide rotation
 
     // Input references (cached for performance)
@@ -91,20 +91,30 @@ public class FirstPersonCamera : MonoBehaviour
 
     void Update()
     {
+        HandleMouseLook();
         HandleFieldOfView();
         HandleGunVisibility();
-        HandleSlideCamera();
-
-        if (rbController.isGrounded && !rbController.IsSliding)
-        {
-            HandleHeadBobbing();
-        }
     }
 
     void LateUpdate()
     {
-        // Camera rotation happens here to ensure smooth movement after physics
-        HandleMouseLook();
+        // All camera transformations happen here to ensure smooth movement after physics
+        if (rbController.IsSliding)
+        {
+            HandleSlideCamera();
+        }
+        else if (Mathf.Abs(transform.localPosition.y - midpoint) > 0.05f)
+        {
+            // Return to base position with smoother, slower transition
+            Vector3 newLocalPos = transform.localPosition;
+            newLocalPos.y = Mathf.Lerp(newLocalPos.y, midpoint, slideCameraReturnSpeed * Time.deltaTime);
+            transform.localPosition = newLocalPos;
+        }
+        else if (rbController.isGrounded)
+        {
+            // Only allow head bobbing when camera is back at midpoint
+            HandleHeadBobbing();
+        }
     }
 
     void HandleMouseLook()
@@ -125,7 +135,7 @@ public class FirstPersonCamera : MonoBehaviour
 
     void HandleGunVisibility()
     {
-        if (mouse == null || gun == null || gunFiring == null) return;
+        if (mouse == null) return;
 
         bool isFiring = mouse.leftButton.isPressed;
         if (isFiring)
@@ -199,9 +209,9 @@ public class FirstPersonCamera : MonoBehaviour
         else
         {
             // Return to base position with smoother, slower transition
-            Vector3 newLocalPos = transform.localPosition;
-            newLocalPos.y = Mathf.Lerp(newLocalPos.y, midpoint, slideCameraReturnSpeed * Time.deltaTime);
-            transform.localPosition = newLocalPos;
+            // Vector3 newLocalPos = transform.localPosition;
+            // newLocalPos.y = Mathf.Lerp(newLocalPos.y, midpoint, slideCameraReturnSpeed * Time.deltaTime);
+            // transform.localPosition = newLocalPos;
         }
     }
 

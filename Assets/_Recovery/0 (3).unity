@@ -413,7 +413,7 @@ MonoBehaviour:
   bobbingSpeed: 0.06
   bobbingAmount: 0.03
   midpoint: 1
-  slidePositionOffset: -0.5
+  slidePositionOffset: -2.5
   slideCameraTransitionSpeed: 10
   slideCameraReturnSpeed: 5
   baseFOV: 60

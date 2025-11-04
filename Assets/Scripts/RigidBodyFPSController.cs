@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using System.Collections;
 
 public class RigidbodyFPSController : MonoBehaviour
@@ -12,17 +13,17 @@ public class RigidbodyFPSController : MonoBehaviour
 
     [Header("Slide Settings")]
     [SerializeField] private float slideSpeed = 12f;
-    [SerializeField] private float slideDuration = 0.05f;
+    [SerializeField] private float slideDuration = 2f;
     [SerializeField] private float slideMultiplier = 3f;
     [SerializeField] private float slideDrag = 15f;
-    
+
     [Header("Ground Detection")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundDistance = 0.3f;
     [SerializeField] private LayerMask groundLayer;
 
     private float playerSpeed;
-    
+
     // Private variables
     private Rigidbody rb;
     private Vector2 moveInput;
@@ -36,8 +37,18 @@ public class RigidbodyFPSController : MonoBehaviour
     // public variables
     public bool isGrounded;
     public bool IsSliding => isSliding;
-    
-    
+
+    // Input references (cached for performance)
+    private Keyboard keyboard;
+    private Mouse mouse;
+
+    void Awake()
+    {
+        // Cache input devices early
+        keyboard = Keyboard.current;
+        mouse = Mouse.current;
+    }
+
     void Start()
     {
         // Get the Rigidbody component
@@ -62,9 +73,9 @@ public class RigidbodyFPSController : MonoBehaviour
 
         // Display player speed
         Vector3 horizontalVelocity = rb.linearVelocity;
-        horizontalVelocity.y = 0f;
+        horizontalVelocity.y = 0f; 
         playerSpeed = horizontalVelocity.magnitude;
-        Debug.Log($"Player Speed: {playerSpeed:F2} units/s");
+        // Debug.Log($"Player Speed: {playerSpeed:F2} units/s");
     }
     
     void FixedUpdate()
@@ -78,22 +89,33 @@ public class RigidbodyFPSController : MonoBehaviour
     
     void CaptureInput()
     {
+        if (keyboard == null) return;
+
         // Get movement input (WASD or arrow keys)
-        moveInput.x = Input.GetAxisRaw("Horizontal"); // A/D or Left/Right
-        moveInput.y = Input.GetAxisRaw("Vertical");   // W/S or Up/Down
+        moveInput.x = 0f;
+        moveInput.y = 0f;
+
+        if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) moveInput.x = -1f;
+        else if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) moveInput.x = 1f;
+
+        if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) moveInput.y = -1f;
+        else if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) moveInput.y = 1f;
 
         // Get mouse input
-        mouseInput.x = Input.GetAxis("Mouse X");
-        mouseInput.y = Input.GetAxis("Mouse Y");
+        if (mouse != null)
+        {
+            Vector2 mouseDelta = mouse.delta.ReadValue();
+            mouseInput = mouseDelta;
+        }
 
         // Check for slide input (LCtrl) - only trigger on key DOWN, not held
-        if (Input.GetKeyDown(KeyCode.LeftControl) && isGrounded && !isSliding)
+        if (keyboard.leftCtrlKey.wasPressedThisFrame && isGrounded)
         {
             StartSlide();
         }
 
         // Cancel slide if key is released early
-        if (Input.GetKeyUp(KeyCode.LeftControl) && isSliding)
+        if (keyboard.leftCtrlKey.wasReleasedThisFrame && isSliding)
         {
             if (slideCoroutine != null)
             {
@@ -104,13 +126,13 @@ public class RigidbodyFPSController : MonoBehaviour
         }
 
         // Check for jump input (queue it for FixedUpdate)
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (keyboard.spaceKey.wasPressedThisFrame && isGrounded)
         {
             jumpRequested = true;
         }
 
         // Allow unlocking cursor with Escape
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (keyboard.escapeKey.wasPressedThisFrame)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -131,7 +153,7 @@ public class RigidbodyFPSController : MonoBehaviour
     {
         Vector3 targetVelocity;
 
-        if (isSliding && playerSpeed > 10f) 
+        if (isSliding && playerSpeed > 10f)
         {
             // During slide, boost current velocity in the slide direction
             targetVelocity = slideDirection * (slideSpeed*slideMultiplier);
@@ -142,7 +164,10 @@ public class RigidbodyFPSController : MonoBehaviour
             Vector3 moveDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
 
             // Normalize to prevent faster diagonal movement
-            moveDirection.Normalize();
+            if (moveDirection.magnitude > 0f)
+            {
+                moveDirection.Normalize();
+            }
 
             // Calculate target velocity (only horizontal movement)
             targetVelocity = moveDirection * moveSpeed;
@@ -151,17 +176,25 @@ public class RigidbodyFPSController : MonoBehaviour
         // Keep the current vertical velocity (gravity/jumping)
         targetVelocity.y = rb.linearVelocity.y;
 
-        // Apply the velocity
-        rb.linearVelocity = targetVelocity;
+        // Smoothly interpolate to target velocity for less jitter
+        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, targetVelocity, 0.5f);
     }
     
     void HandleJump()
     {
         if (jumpRequested)
         {
+            if (isSliding)
+            {
+                rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce*2, rb.linearVelocity.z);
+                jumpRequested = false; // Reset the flag
+
+                return; 
+            }
             // Apply instant upward velocity
             rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
             jumpRequested = false; // Reset the flag
+
         }
     }
     
@@ -191,7 +224,7 @@ public class RigidbodyFPSController : MonoBehaviour
 
     void StartSlide()
     {
-        Debug.Log("SLIDE STARTED");
+        // Debug.Log("SLIDE STARTED");
         isSliding = true;
 
         // Get current horizontal velocity
@@ -227,7 +260,7 @@ public class RigidbodyFPSController : MonoBehaviour
             yield return null;
         }
 
-        Debug.Log("SLIDE ENDED");
+        //  Debug.Log("SLIDE ENDED");
         EndSlide();
     }
 
