@@ -37,6 +37,7 @@ public class FirstPersonCamera : MonoBehaviour
     [Header("Runtime State")]
     public bool isSprinting = false;
 
+    // start of movement branch
     // Cached values
     private float xRotation = 0f;
     private float bobbingTimer = 0f;
